@@ -1,13 +1,13 @@
 /**
  * CalcXTerminal — A web-based terminal emulator for the CalcX calculator.
- * Renders a realistic CLI interface with prompt, input, and output lines.
+ * Renders a realistic CLI interface with login, menu, and calculator modes.
  */
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
 import {
-  add, subtract, multiply, divide,
+  add, subtract, multiply, divide, modulus,
   squareRoot, power, factorial, logarithm, exponential,
-  sine, cosine, tangent,
+  sine, cosine, tangent, inverseSine, inverseCosine, inverseTangent,
   evaluateExpression,
   createHistoryEntry, historyToFileContent,
   type HistoryEntry,
@@ -24,10 +24,11 @@ interface TerminalLine {
 }
 
 type InputState =
+  | { mode: "login" }
   | { mode: "menu" }
-  | { mode: "basic_op"; step: "val1" }
-  | { mode: "basic_op"; step: "operator"; val1: number }
-  | { mode: "basic_op"; step: "val2"; val1: number; op: string }
+  | { mode: "basic_select" }
+  | { mode: "basic_input"; op: string; step: "val1" }
+  | { mode: "basic_input"; op: string; step: "val2"; val1: number }
   | { mode: "sci_select" }
   | { mode: "sci_input"; op: string; step: "val1" }
   | { mode: "sci_input"; op: "pow"; step: "val2"; base: number }
@@ -42,182 +43,254 @@ function line(text: string, type: LineType = "normal", indent = 0): TerminalLine
 export default function CalcXTerminal() {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [inputState, setInputState] = useState<InputState>({ mode: "menu" });
+  const [inputState, setInputState] = useState<InputState>({ mode: "login" });
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [promptLabel, setPromptLabel] = useState("cmd >");
+  const [promptLabel, setPromptLabel] = useState("username >");
+  const [username, setUsername] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  // Auto-scroll to bottom
   useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-    }
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [lines]);
 
-  // Focus input on click
   const focusInput = () => inputRef.current?.focus();
 
-  // Append lines helper
   const append = useCallback((...newLines: TerminalLine[]) => {
     setLines((prev) => [...prev, ...newLines]);
   }, []);
 
-  // Show the main menu
-  const showMenu = useCallback(() => {
-    append(
-      line(""),
-      line("calcx_v1.0", "prompt"),
-      line("[1:basic  2:sci  3:expr  4:hist  5:save  0:clear]", "dim"),
-    );
-    setPromptLabel("cmd >");
-    setInputState({ mode: "menu" });
-  }, [append]);
-
-  // Initialize
+  // --- Welcome screen ---
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    const startLines: TerminalLine[] = [
-      line("┌─────────────────────────────────────────┐", "dim"),
-      line("│  calcx v1.0.0 ready.                    │", "prompt"),
-      line("│  precision-engineered cli calculator     │", "dim"),
-      line("└─────────────────────────────────────────┘", "dim"),
+    setLines([
+      line("┌──────────────────────────────────────────┐", "dim"),
+      line("│       Welcome to CalcX Calculator        │", "prompt"),
+      line("│       Smart CLI Calculator v1.0           │", "dim"),
+      line("└──────────────────────────────────────────┘", "dim"),
       line(""),
-      line("calcx_v1.0", "prompt"),
-      line("[1:basic  2:sci  3:expr  4:hist  5:save  0:clear]", "dim"),
-    ];
-    setLines(startLines);
+      line("Please sign in to continue.", "normal"),
+    ]);
   }, []);
 
-  // Record to history
+  // --- Show main operations menu ---
+  const showMenu = useCallback(() => {
+    append(
+      line(""),
+      line("────────────────────────────", "dim"),
+      line(`  CalcX v1.0 — ${username}`, "prompt"),
+      line("────────────────────────────", "dim"),
+      line("  Choose Operation:", "bold"),
+      line("  1. Basic Operations", "normal", 1),
+      line("  2. Scientific Operations", "normal", 1),
+      line("  3. Expression Mode", "normal", 1),
+      line("  4. View History", "normal", 1),
+      line("  5. Save History to File", "normal", 1),
+      line("  0. Exit", "normal", 1),
+      line("────────────────────────────", "dim"),
+    );
+    setPromptLabel("cmd >");
+    setInputState({ mode: "menu" });
+  }, [append, username]);
+
+  const showBasicMenu = useCallback(() => {
+    append(
+      line(""),
+      line("--- Basic Operations ---", "bold"),
+      line("  1. Addition (+)", "normal", 1),
+      line("  2. Subtraction (-)", "normal", 1),
+      line("  3. Multiplication (×)", "normal", 1),
+      line("  4. Division (÷)", "normal", 1),
+      line("  5. Modulus (%)", "normal", 1),
+      line("  0. Back", "normal", 1),
+    );
+    setPromptLabel("basic >");
+    setInputState({ mode: "basic_select" });
+  }, [append]);
+
+  const showSciMenu = useCallback(() => {
+    append(
+      line(""),
+      line("--- Scientific Operations ---", "bold"),
+      line("  1. Square Root      7. Cosine (cos)", "dim", 1),
+      line("  2. Power            8. Tangent (tan)", "dim", 1),
+      line("  3. Factorial        9. Inverse Sine (asin)", "dim", 1),
+      line("  4. Logarithm       10. Inverse Cosine (acos)", "dim", 1),
+      line("  5. Exponential     11. Inverse Tangent (atan)", "dim", 1),
+      line("  6. Sine (sin)       0. Back", "dim", 1),
+    );
+    setPromptLabel("sci >");
+    setInputState({ mode: "sci_select" });
+  }, [append]);
+
   const record = useCallback((expression: string, result: string) => {
     setHistory((prev) => [...prev, createHistoryEntry(expression, result)]);
   }, []);
 
-  // Process input based on current state
+  const parseNum = (s: string): number | null => {
+    const n = Number(s);
+    return isNaN(n) ? null : n;
+  };
+
+  const showResult = useCallback((expr: string, res: string) => {
+    append(line(`✓ ${res}`, "success", 4));
+    record(expr, res);
+  }, [append, record]);
+
+  const showError = useCallback((msg: string) => {
+    append(line(`✗ ${msg}`, "error", 4));
+  }, [append]);
+
+  // --- Process input ---
   const processInput = useCallback((value: string) => {
     const trimmed = value.trim();
-    // Echo the input
     append(line(`${promptLabel} ${trimmed}`, "input-echo"));
 
-    const parseNum = (s: string): number | null => {
-      const n = Number(s);
-      return isNaN(n) ? null : n;
-    };
-
-    const showResult = (expr: string, res: string) => {
-      append(line(`✓ ${res}`, "success", 4));
-      record(expr, res);
-    };
-
-    const showError = (msg: string) => {
-      append(line(`✗ ${msg}`, "error", 4));
-    };
-
     switch (inputState.mode) {
+      case "login": {
+        if (!trimmed) { showError("Please enter a username."); return; }
+        setUsername(trimmed);
+        append(line(""), line(`Hello, ${trimmed}! Choose an operation to continue.`, "success"));
+        // We need to call showMenu after username is set, but since setState is async
+        // we build the menu inline here
+        const menuLines = [
+          line(""),
+          line("────────────────────────────", "dim"),
+          line(`  CalcX v1.0 — ${trimmed}`, "prompt"),
+          line("────────────────────────────", "dim"),
+          line("  Choose Operation:", "bold"),
+          line("  1. Basic Operations", "normal", 1),
+          line("  2. Scientific Operations", "normal", 1),
+          line("  3. Expression Mode", "normal", 1),
+          line("  4. View History", "normal", 1),
+          line("  5. Save History to File", "normal", 1),
+          line("  0. Exit", "normal", 1),
+          line("────────────────────────────", "dim"),
+        ];
+        append(...menuLines);
+        setPromptLabel("cmd >");
+        setInputState({ mode: "menu" });
+        break;
+      }
+
       case "menu": {
-        if (trimmed === "1") {
-          append(line(""), line("--- basic_ops ---", "bold"));
-          setPromptLabel("val_1:");
-          setInputState({ mode: "basic_op", step: "val1" });
-        } else if (trimmed === "2") {
-          append(
-            line(""), line("--- scientific_ops ---", "bold"),
-            line("1:sqrt | 2:pow | 3:fact | 4:log | 5:exp | 6:sin | 7:cos | 8:tan", "dim"),
-          );
-          setPromptLabel("select_op:");
-          setInputState({ mode: "sci_select" });
-        } else if (trimmed === "3") {
-          append(
-            line(""), line("--- expression_mode ---", "bold"),
-            line("supports: +, -, *, /, ^, sqrt(), sin(), cos(), tan(), log(), exp(), pi, e", "dim"),
-            line("type 'back' to return to menu", "dim"),
-          );
-          setPromptLabel("in >");
-          setInputState({ mode: "expression" });
-        } else if (trimmed === "4") {
-          append(line(""), line("--- session_history ---", "bold"));
-          if (history.length === 0) {
-            append(line("no records found.", "dim"));
-          } else {
-            history.slice(-10).forEach((e) => {
-              append(line(`${e.timestamp} | ${e.expression} = ${e.result}`, "dim", 1));
-            });
-          }
-          showMenu();
-        } else if (trimmed === "5") {
-          if (history.length === 0) {
-            append(line("no records to save.", "dim"));
-          } else {
-            const content = historyToFileContent(history);
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "result.txt";
-            a.click();
-            URL.revokeObjectURL(url);
-            append(line("✓ saved to result.txt", "success", 4));
-          }
-          showMenu();
-        } else if (trimmed === "0") {
-          setLines([]);
-          initialized.current = false;
-          const startLines: TerminalLine[] = [
-            line("┌─────────────────────────────────────────┐", "dim"),
-            line("│  calcx v1.0.0 ready.                    │", "prompt"),
-            line("│  precision-engineered cli calculator     │", "dim"),
-            line("└─────────────────────────────────────────┘", "dim"),
-            line(""),
-            line("calcx_v1.0", "prompt"),
-            line("[1:basic  2:sci  3:expr  4:hist  5:save  0:clear]", "dim"),
-          ];
-          setLines(startLines);
-          setInputState({ mode: "menu" });
-          setPromptLabel("cmd >");
-        } else {
-          showError("unknown_command");
-          showMenu();
+        switch (trimmed) {
+          case "1": showBasicMenu(); break;
+          case "2": showSciMenu(); break;
+          case "3":
+            append(
+              line(""), line("--- Expression Mode ---", "bold"),
+              line("supports: +, -, *, /, ^, sqrt(), sin(), cos(), tan(), log(), exp(), pi, e", "dim"),
+              line("type 'back' to return", "dim"),
+            );
+            setPromptLabel("expr >");
+            setInputState({ mode: "expression" });
+            break;
+          case "4":
+            append(line(""), line("--- Session History ---", "bold"));
+            if (history.length === 0) {
+              append(line("  no records found.", "dim"));
+            } else {
+              history.slice(-15).forEach((e) => {
+                append(line(`  ${e.timestamp} | ${e.expression} = ${e.result}`, "dim", 1));
+              });
+            }
+            showMenu();
+            break;
+          case "5":
+            if (history.length === 0) {
+              append(line("  no records to save.", "dim"));
+            } else {
+              const content = historyToFileContent(history);
+              const blob = new Blob([content], { type: "text/plain" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = "result.txt"; a.click();
+              URL.revokeObjectURL(url);
+              append(line("✓ saved to result.txt", "success", 4));
+            }
+            showMenu();
+            break;
+          case "0":
+            append(line(""), line(`Goodbye, ${username}! Thanks for using CalcX.`, "prompt"));
+            setLines((prev) => [...prev]);
+            // Reset to login
+            setTimeout(() => {
+              lineIdCounter = 0;
+              setUsername("");
+              setHistory([]);
+              setLines([
+                line("┌──────────────────────────────────────────┐", "dim"),
+                line("│       Welcome to CalcX Calculator        │", "prompt"),
+                line("│       Smart CLI Calculator v1.0           │", "dim"),
+                line("└──────────────────────────────────────────┘", "dim"),
+                line(""),
+                line("Please sign in to continue.", "normal"),
+              ]);
+              setPromptLabel("username >");
+              setInputState({ mode: "login" });
+            }, 1500);
+            break;
+          default:
+            showError("unknown_command");
+            showMenu();
         }
         break;
       }
 
-      case "basic_op": {
+      case "basic_select": {
+        const opMap: Record<string, string> = { "1": "+", "2": "-", "3": "*", "4": "/", "5": "%" };
+        if (trimmed === "0") { showMenu(); return; }
+        const op = opMap[trimmed];
+        if (!op) { showError("unknown_operation"); return; }
+        setPromptLabel("val_1:");
+        setInputState({ mode: "basic_input", op, step: "val1" });
+        break;
+      }
+
+      case "basic_input": {
         if (inputState.step === "val1") {
           const n = parseNum(trimmed);
           if (n === null) { showError("invalid_input: enter a numeric value."); return; }
-          setPromptLabel("operator (+,-,*,/):");
-          setInputState({ mode: "basic_op", step: "operator", val1: n });
-        } else if (inputState.step === "operator") {
-          if (!["+", "-", "*", "/"].includes(trimmed)) { showError("unknown_operator"); return; }
           setPromptLabel("val_2:");
-          setInputState({ mode: "basic_op", step: "val2", val1: inputState.val1, op: trimmed });
+          setInputState({ mode: "basic_input", op: inputState.op, step: "val2", val1: n });
         } else if (inputState.step === "val2") {
           const n = parseNum(trimmed);
           if (n === null) { showError("invalid_input: enter a numeric value."); return; }
           try {
-            const ops: Record<string, (a: number, b: number) => string> = { "+": add, "-": subtract, "*": multiply, "/": divide };
+            const ops: Record<string, (a: number, b: number) => string> = {
+              "+": add, "-": subtract, "*": multiply, "/": divide, "%": modulus,
+            };
             const res = ops[inputState.op](inputState.val1, n);
-            showResult(`${inputState.val1} ${inputState.op} ${n}`, res);
+            const opSymbols: Record<string, string> = { "+": "+", "-": "-", "*": "×", "/": "÷", "%": "%" };
+            showResult(`${inputState.val1} ${opSymbols[inputState.op]} ${n}`, res);
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showMenu();
+          showBasicMenu();
         }
         break;
       }
 
       case "sci_select": {
-        const opMap: Record<string, string> = { "1": "sqrt", "2": "pow", "3": "fact", "4": "log", "5": "exp", "6": "sin", "7": "cos", "8": "tan" };
+        if (trimmed === "0") { showMenu(); return; }
+        const opMap: Record<string, string> = {
+          "1": "sqrt", "2": "pow", "3": "fact", "4": "log", "5": "exp",
+          "6": "sin", "7": "cos", "8": "tan", "9": "asin", "10": "acos", "11": "atan",
+        };
         const op = opMap[trimmed];
-        if (!op) { showError("unknown_operation"); showMenu(); return; }
+        if (!op) { showError("unknown_operation"); return; }
         if (op === "pow") {
           setPromptLabel("base:");
           setInputState({ mode: "sci_input", op: "pow", step: "val1" });
         } else {
-          const labels: Record<string, string> = { sqrt: "val:", fact: "val (int):", log: "val:", exp: "val:", sin: "angle (deg):", cos: "angle (deg):", tan: "angle (deg):" };
+          const labels: Record<string, string> = {
+            sqrt: "val:", fact: "val (int):", log: "val:", exp: "val:",
+            sin: "angle (deg):", cos: "angle (deg):", tan: "angle (deg):",
+            asin: "val [-1,1]:", acos: "val [-1,1]:", atan: "val:",
+          };
           setPromptLabel(labels[op] || "val:");
           setInputState({ mode: "sci_input", op, step: "val1" });
         }
@@ -237,17 +310,19 @@ export default function CalcXTerminal() {
             const fns: Record<string, (v: number) => string> = {
               sqrt: squareRoot, fact: factorial, log: logarithm,
               exp: exponential, sin: sine, cos: cosine, tan: tangent,
+              asin: inverseSine, acos: inverseCosine, atan: inverseTangent,
             };
             const labels: Record<string, (v: number) => string> = {
-              sqrt: (v) => `sqrt(${v})`, fact: (v) => `${v}!`, log: (v) => `log10(${v})`,
-              exp: (v) => `exp(${v})`, sin: (v) => `sin(${v}°)`, cos: (v) => `cos(${v}°)`, tan: (v) => `tan(${v}°)`,
+              sqrt: (v) => `√${v}`, fact: (v) => `${v}!`, log: (v) => `log10(${v})`,
+              exp: (v) => `e^${v}`, sin: (v) => `sin(${v}°)`, cos: (v) => `cos(${v}°)`, tan: (v) => `tan(${v}°)`,
+              asin: (v) => `asin(${v})°`, acos: (v) => `acos(${v})°`, atan: (v) => `atan(${v})°`,
             };
             const res = fns[inputState.op](n);
             showResult(labels[inputState.op](n), res);
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showMenu();
+          showSciMenu();
         } else if (inputState.step === "val2" && inputState.op === "pow") {
           const n = parseNum(trimmed);
           if (n === null) { showError("invalid_input: enter a numeric value."); return; }
@@ -257,7 +332,7 @@ export default function CalcXTerminal() {
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showMenu();
+          showSciMenu();
         }
         break;
       }
@@ -273,7 +348,7 @@ export default function CalcXTerminal() {
         break;
       }
     }
-  }, [inputState, history, append, showMenu, record, promptLabel]);
+  }, [inputState, history, append, showMenu, showBasicMenu, showSciMenu, record, promptLabel, username, showResult, showError]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {
@@ -297,15 +372,15 @@ export default function CalcXTerminal() {
 
   return (
     <div className="terminal-window max-w-2xl w-full mx-auto" onClick={focusInput}>
-      {/* Title bar */}
       <div className="terminal-header">
         <div className="terminal-dot bg-terminal-error" />
         <div className="terminal-dot" style={{ backgroundColor: "hsl(45, 93%, 47%)" }} />
         <div className="terminal-dot bg-terminal-success" />
-        <span className="ml-3 text-xs terminal-dim-text font-mono">calcx — ~/calculator</span>
+        <span className="ml-3 text-xs terminal-dim-text font-mono">
+          calcx — {username ? `~/${username}` : "~/login"}
+        </span>
       </div>
 
-      {/* Terminal body */}
       <div className="terminal-body" ref={bodyRef}>
         {lines.map((l) => (
           <div
@@ -317,7 +392,6 @@ export default function CalcXTerminal() {
           </div>
         ))}
 
-        {/* Input line */}
         <div className="terminal-line flex items-center gap-2 mt-1">
           <span className="terminal-prompt-text font-bold whitespace-nowrap">{promptLabel}</span>
           <input

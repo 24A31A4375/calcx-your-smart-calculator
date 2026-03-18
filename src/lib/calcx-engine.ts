@@ -19,7 +19,6 @@ export interface HistoryEntry {
 function formatResult(value: number): string {
   if (!isFinite(value)) return value > 0 ? "Infinity" : "-Infinity";
   if (isNaN(value)) return "NaN";
-  // Round to 4 decimal places, then use general format
   const rounded = Math.round(value * 10000) / 10000;
   return String(rounded);
 }
@@ -46,6 +45,11 @@ export function multiply(a: number, b: number): string {
 export function divide(a: number, b: number): string {
   if (b === 0) throw new Error("math_error: division by zero.");
   return formatResult(a / b);
+}
+
+export function modulus(a: number, b: number): string {
+  if (b === 0) throw new Error("math_error: modulus by zero.");
+  return formatResult(a % b);
 }
 
 // --- Scientific Operations ---
@@ -88,6 +92,20 @@ export function tangent(degrees: number): string {
   const rad = (degrees * Math.PI) / 180;
   if (Math.abs(Math.cos(rad)) < 1e-10) throw new Error("domain_error: tan undefined at this angle.");
   return formatResult(Math.tan(rad));
+}
+
+export function inverseSine(val: number): string {
+  if (val < -1 || val > 1) throw new Error("domain_error: asin requires value in [-1, 1].");
+  return formatResult((Math.asin(val) * 180) / Math.PI);
+}
+
+export function inverseCosine(val: number): string {
+  if (val < -1 || val > 1) throw new Error("domain_error: acos requires value in [-1, 1].");
+  return formatResult((Math.acos(val) * 180) / Math.PI);
+}
+
+export function inverseTangent(val: number): string {
+  return formatResult((Math.atan(val) * 180) / Math.PI);
 }
 
 // --- Expression Evaluation ---

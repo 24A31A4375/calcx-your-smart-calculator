@@ -1,6 +1,6 @@
 /**
- * Smart CalcX Terminal — Interactive CLI Calculator with colorful UI,
- * strict input validation, and continue prompts.
+ * Smart CalcX Terminal — Interactive CLI Calculator with categorized trig,
+ * sub-menus, strict input validation, and 3-option flow control.
  */
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
@@ -8,6 +8,7 @@ import {
   add, subtract, multiply, divide, modulus,
   squareRoot, power, factorial, logarithm, exponential,
   sine, cosine, tangent, inverseSine, inverseCosine, inverseTangent,
+  secant, cosecant, cotangent, inverseSecant, inverseCosecant, inverseCotangent,
   evaluateExpression,
   createHistoryEntry, historyToFileContent,
   type HistoryEntry,
@@ -22,6 +23,8 @@ interface TerminalLine {
   indent?: number;
 }
 
+type FlowReturn = "menu" | "basic" | "sci" | "sci_basic" | "trig" | "inv_trig" | "expr";
+
 type InputState =
   | { mode: "login" }
   | { mode: "menu" }
@@ -29,10 +32,15 @@ type InputState =
   | { mode: "basic_input"; op: string; step: "val1" }
   | { mode: "basic_input"; op: string; step: "val2"; val1: number }
   | { mode: "sci_select" }
-  | { mode: "sci_input"; op: string; step: "val1" }
-  | { mode: "sci_input"; op: "pow"; step: "val2"; base: number }
+  | { mode: "sci_basic_select" }
+  | { mode: "sci_basic_input"; op: string; step: "val1" }
+  | { mode: "sci_basic_input"; op: "pow"; step: "val2"; base: number }
+  | { mode: "trig_select" }
+  | { mode: "trig_input"; op: string }
+  | { mode: "inv_trig_select" }
+  | { mode: "inv_trig_input"; op: string }
   | { mode: "expression" }
-  | { mode: "continue"; returnTo: "basic" | "sci" | "expr" | "menu" };
+  | { mode: "flow_control"; returnTo: FlowReturn };
 
 let lineIdCounter = 0;
 
@@ -76,23 +84,25 @@ export default function CalcXTerminal() {
     ]);
   }, []);
 
-  // --- Show main operations menu ---
+  // --- Menus ---
+  const menuLines = (): TerminalLine[] => [
+    line(""),
+    line("════════════════════════════════════════════", "cyan"),
+    line("          🔢 Choose Operation", "cyan"),
+    line("════════════════════════════════════════════", "cyan"),
+    line(""),
+    line("  1. 🧮 Basic Operations", "normal", 1),
+    line("  2. 📐 Scientific Operations", "normal", 1),
+    line("  3. ⚡ Expression Mode", "normal", 1),
+    line("  4. 📜 View History", "normal", 1),
+    line("  5. 💾 Save History", "normal", 1),
+    line("  0. ❌ Exit", "normal", 1),
+    line(""),
+    line("════════════════════════════════════════════", "cyan"),
+  ];
+
   const showMenu = useCallback(() => {
-    append(
-      line(""),
-      line("════════════════════════════════════════════", "cyan"),
-      line("          🔢 Choose Operation", "cyan"),
-      line("════════════════════════════════════════════", "cyan"),
-      line(""),
-      line("  1. 🧮 Basic Operations", "normal", 1),
-      line("  2. 📐 Scientific Operations", "normal", 1),
-      line("  3. ⚡ Expression Mode", "normal", 1),
-      line("  4. 📜 View History", "normal", 1),
-      line("  5. 💾 Save History", "normal", 1),
-      line("  0. ❌ Exit", "normal", 1),
-      line(""),
-      line("════════════════════════════════════════════", "cyan"),
-    );
+    append(...menuLines());
     setPromptLabel("cmd >");
     setInputState({ mode: "menu" });
   }, [append]);
@@ -119,16 +129,67 @@ export default function CalcXTerminal() {
       line(""),
       line("──── 📐 Scientific Operations ────", "cyan"),
       line(""),
-      line("  1.  √  Square Root        7. cos Cosine", "dim", 1),
-      line("  2. xʸ  Power              8. tan Tangent", "dim", 1),
-      line("  3.  !  Factorial           9. asin Inv Sine", "dim", 1),
-      line("  4. log Logarithm         10. acos Inv Cosine", "dim", 1),
-      line("  5. eˣ  Exponential       11. atan Inv Tangent", "dim", 1),
-      line("  6. sin Sine               0. ↩️  Back", "dim", 1),
+      line("  1. 🔬 Basic Scientific", "normal", 1),
+      line("  2. 📊 Trigonometric Functions", "normal", 1),
+      line("  3. 🔄 Inverse Trigonometric Functions", "normal", 1),
+      line("  0. ↩️  Back", "dim", 1),
       line(""),
     );
     setPromptLabel("sci >");
     setInputState({ mode: "sci_select" });
+  }, [append]);
+
+  const showSciBasicMenu = useCallback(() => {
+    append(
+      line(""),
+      line("──── 🔬 Basic Scientific ────", "cyan"),
+      line(""),
+      line("  1.  √  Square Root", "dim", 1),
+      line("  2. xʸ  Power", "dim", 1),
+      line("  3.  !  Factorial", "dim", 1),
+      line("  4. log Logarithm (base 10)", "dim", 1),
+      line("  5. eˣ  Exponential", "dim", 1),
+      line("  0. ↩️  Back", "dim", 1),
+      line(""),
+    );
+    setPromptLabel("sci-basic >");
+    setInputState({ mode: "sci_basic_select" });
+  }, [append]);
+
+  const showTrigMenu = useCallback(() => {
+    append(
+      line(""),
+      line("──── 📊 Trigonometric Functions ────", "cyan"),
+      line(""),
+      line("  1. sin   Sine", "dim", 1),
+      line("  2. cos   Cosine", "dim", 1),
+      line("  3. tan   Tangent", "dim", 1),
+      line("  4. sec   Secant", "dim", 1),
+      line("  5. cosec Cosecant", "dim", 1),
+      line("  6. cot   Cotangent", "dim", 1),
+      line("  0. ↩️   Back", "dim", 1),
+      line(""),
+    );
+    setPromptLabel("trig >");
+    setInputState({ mode: "trig_select" });
+  }, [append]);
+
+  const showInvTrigMenu = useCallback(() => {
+    append(
+      line(""),
+      line("──── 🔄 Inverse Trigonometric Functions ────", "cyan"),
+      line(""),
+      line("  1. asin   Inverse Sine", "dim", 1),
+      line("  2. acos   Inverse Cosine", "dim", 1),
+      line("  3. atan   Inverse Tangent", "dim", 1),
+      line("  4. asec   Inverse Secant", "dim", 1),
+      line("  5. acosec Inverse Cosecant", "dim", 1),
+      line("  6. acot   Inverse Cotangent", "dim", 1),
+      line("  0. ↩️   Back", "dim", 1),
+      line(""),
+    );
+    setPromptLabel("inv-trig >");
+    setInputState({ mode: "inv_trig_select" });
   }, [append]);
 
   const record = useCallback((expression: string, result: string) => {
@@ -149,11 +210,62 @@ export default function CalcXTerminal() {
     append(line(`❌ ${msg}`, "error", 2));
   }, [append]);
 
-  const showContinuePrompt = useCallback((returnTo: "basic" | "sci" | "expr" | "menu") => {
-    append(line(""), line("Do you want to continue? (yes/no):", "yellow"));
+  const showFlowControl = useCallback((returnTo: FlowReturn) => {
+    append(
+      line(""),
+      line("────────────────────────────", "dim"),
+      line("  1. 🔄 Continue (Operations)", "normal", 1),
+      line("  2. ↩️  Back (Previous Menu)", "normal", 1),
+      line("  0. ❌ Exit", "normal", 1),
+      line("────────────────────────────", "dim"),
+    );
     setPromptLabel("➜");
-    setInputState({ mode: "continue", returnTo });
+    setInputState({ mode: "flow_control", returnTo });
   }, [append]);
+
+  const resetToLogin = useCallback(() => {
+    setTimeout(() => {
+      lineIdCounter = 0;
+      setUsername("");
+      setHistory([]);
+      setLines([
+        line(""),
+        line("════════════════════════════════════════════", "cyan"),
+        line("        Welcome to Smart CalcX 🧮", "cyan"),
+        line("    Interactive CLI Calculator v2.0", "dim"),
+        line("════════════════════════════════════════════", "cyan"),
+        line(""),
+        line("Please sign in to continue.", "normal"),
+      ]);
+      setPromptLabel("👤 username >");
+      setInputState({ mode: "login" });
+    }, 1500);
+  }, []);
+
+  const exitMessage = useCallback(() => {
+    append(
+      line(""),
+      line(`Thanks for using Smart CalcX 👋`, "cyan"),
+      line(`Goodbye, ${username}!`, "prompt"),
+    );
+    resetToLogin();
+  }, [append, username, resetToLogin]);
+
+  const navigateToMenu = useCallback((target: FlowReturn) => {
+    switch (target) {
+      case "menu": showMenu(); break;
+      case "basic": showBasicMenu(); break;
+      case "sci": showSciMenu(); break;
+      case "sci_basic": showSciBasicMenu(); break;
+      case "trig": showTrigMenu(); break;
+      case "inv_trig": showInvTrigMenu(); break;
+      case "expr":
+        append(line(""), line("──── ⚡ Expression Mode ────", "cyan"), line("Type 'back' to return", "dim"), line(""));
+        setPromptLabel("expr >");
+        setInputState({ mode: "expression" });
+        break;
+    }
+  }, [showMenu, showBasicMenu, showSciMenu, showSciBasicMenu, showTrigMenu, showInvTrigMenu, append]);
 
   // --- Process input ---
   const processInput = useCallback((value: string) => {
@@ -164,26 +276,8 @@ export default function CalcXTerminal() {
       case "login": {
         if (!trimmed) { showError("Please enter a username."); return; }
         setUsername(trimmed);
-        append(
-          line(""),
-          line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"),
-        );
-        const menuLines = [
-          line(""),
-          line("════════════════════════════════════════════", "cyan"),
-          line("          🔢 Choose Operation", "cyan"),
-          line("════════════════════════════════════════════", "cyan"),
-          line(""),
-          line("  1. 🧮 Basic Operations", "normal", 1),
-          line("  2. 📐 Scientific Operations", "normal", 1),
-          line("  3. ⚡ Expression Mode", "normal", 1),
-          line("  4. 📜 View History", "normal", 1),
-          line("  5. 💾 Save History", "normal", 1),
-          line("  0. ❌ Exit", "normal", 1),
-          line(""),
-          line("════════════════════════════════════════════", "cyan"),
-        ];
-        append(...menuLines);
+        append(line(""), line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"));
+        append(...menuLines());
         setPromptLabel("cmd >");
         setInputState({ mode: "menu" });
         break;
@@ -229,29 +323,7 @@ export default function CalcXTerminal() {
             }
             showMenu();
             break;
-          case "0":
-            append(
-              line(""),
-              line(`Thanks for using Smart CalcX 👋`, "cyan"),
-              line(`Goodbye, ${username}!`, "prompt"),
-            );
-            setTimeout(() => {
-              lineIdCounter = 0;
-              setUsername("");
-              setHistory([]);
-              setLines([
-                line(""),
-                line("════════════════════════════════════════════", "cyan"),
-                line("        Welcome to Smart CalcX 🧮", "cyan"),
-                line("    Interactive CLI Calculator v2.0", "dim"),
-                line("════════════════════════════════════════════", "cyan"),
-                line(""),
-                line("Please sign in to continue.", "normal"),
-              ]);
-              setPromptLabel("👤 username >");
-              setInputState({ mode: "login" });
-            }, 1500);
-            break;
+          case "0": exitMessage(); break;
           default:
             showError("Unknown command. Please enter 0-5.");
             showMenu();
@@ -275,84 +347,135 @@ export default function CalcXTerminal() {
           if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
           setPromptLabel("🔢 val_2:");
           setInputState({ mode: "basic_input", op: inputState.op, step: "val2", val1: n });
-        } else if (inputState.step === "val2") {
+        } else {
           const n = parseNum(trimmed);
           if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
           try {
             const ops: Record<string, (a: number, b: number) => string> = {
               "+": add, "-": subtract, "*": multiply, "/": divide, "%": modulus,
             };
+            const syms: Record<string, string> = { "+": "➕", "-": "➖", "*": "✖️", "/": "➗", "%": "%" };
             const res = ops[inputState.op](inputState.val1, n);
-            const opSymbols: Record<string, string> = { "+": "➕", "-": "➖", "*": "✖️", "/": "➗", "%": "%" };
-            showResult(`${inputState.val1} ${opSymbols[inputState.op]} ${n}`, res);
+            showResult(`${inputState.val1} ${syms[inputState.op]} ${n}`, res);
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showContinuePrompt("basic");
+          showFlowControl("basic");
         }
         break;
       }
 
       case "sci_select": {
-        if (trimmed === "0") { showMenu(); return; }
-        const opMap: Record<string, string> = {
-          "1": "sqrt", "2": "pow", "3": "fact", "4": "log", "5": "exp",
-          "6": "sin", "7": "cos", "8": "tan", "9": "asin", "10": "acos", "11": "atan",
-        };
-        const op = opMap[trimmed];
-        if (!op) { showError("Unknown operation."); return; }
-        if (op === "pow") {
-          setPromptLabel("🔢 base:");
-          setInputState({ mode: "sci_input", op: "pow", step: "val1" });
-        } else {
-          const labels: Record<string, string> = {
-            sqrt: "🔢 value:", fact: "🔢 value (int):", log: "🔢 value:", exp: "🔢 value:",
-            sin: "🔢 angle (deg):", cos: "🔢 angle (deg):", tan: "🔢 angle (deg):",
-            asin: "🔢 value [-1,1]:", acos: "🔢 value [-1,1]:", atan: "🔢 value:",
-          };
-          setPromptLabel(labels[op] || "🔢 value:");
-          setInputState({ mode: "sci_input", op, step: "val1" });
+        switch (trimmed) {
+          case "1": showSciBasicMenu(); break;
+          case "2": showTrigMenu(); break;
+          case "3": showInvTrigMenu(); break;
+          case "0": showMenu(); break;
+          default: showError("Unknown option. Please enter 0-3.");
         }
         break;
       }
 
-      case "sci_input": {
+      case "sci_basic_select": {
+        if (trimmed === "0") { showSciMenu(); return; }
+        const opMap: Record<string, string> = { "1": "sqrt", "2": "pow", "3": "fact", "4": "log", "5": "exp" };
+        const op = opMap[trimmed];
+        if (!op) { showError("Unknown operation. Please enter 0-5."); return; }
+        if (op === "pow") {
+          setPromptLabel("🔢 base:");
+        } else {
+          const labels: Record<string, string> = { sqrt: "🔢 value:", fact: "🔢 value (int):", log: "🔢 value:", exp: "🔢 value:" };
+          setPromptLabel(labels[op]);
+        }
+        setInputState({ mode: "sci_basic_input", op, step: "val1" });
+        break;
+      }
+
+      case "sci_basic_input": {
         if (inputState.step === "val1") {
           const n = parseNum(trimmed);
           if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
           if (inputState.op === "pow") {
             setPromptLabel("🔢 exponent:");
-            setInputState({ mode: "sci_input", op: "pow", step: "val2", base: n });
+            setInputState({ mode: "sci_basic_input", op: "pow", step: "val2", base: n });
             return;
           }
           try {
             const fns: Record<string, (v: number) => string> = {
-              sqrt: squareRoot, fact: factorial, log: logarithm,
-              exp: exponential, sin: sine, cos: cosine, tan: tangent,
-              asin: inverseSine, acos: inverseCosine, atan: inverseTangent,
+              sqrt: squareRoot, fact: factorial, log: logarithm, exp: exponential,
             };
             const labels: Record<string, (v: number) => string> = {
-              sqrt: (v) => `√${v}`, fact: (v) => `${v}!`, log: (v) => `log₁₀(${v})`,
-              exp: (v) => `e^${v}`, sin: (v) => `sin(${v}°)`, cos: (v) => `cos(${v}°)`, tan: (v) => `tan(${v}°)`,
-              asin: (v) => `asin(${v})°`, acos: (v) => `acos(${v})°`, atan: (v) => `atan(${v})°`,
+              sqrt: (v) => `√${v}`, fact: (v) => `${v}!`, log: (v) => `log₁₀(${v})`, exp: (v) => `e^${v}`,
             };
-            const res = fns[inputState.op](n);
-            showResult(labels[inputState.op](n), res);
+            showResult(labels[inputState.op](n), fns[inputState.op](n));
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showContinuePrompt("sci");
+          showFlowControl("sci_basic");
         } else if (inputState.step === "val2" && inputState.op === "pow") {
           const n = parseNum(trimmed);
           if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
           try {
-            const res = power(inputState.base, n);
-            showResult(`${inputState.base}^${n}`, res);
+            showResult(`${inputState.base}^${n}`, power(inputState.base, n));
           } catch (e: unknown) {
             showError(e instanceof Error ? e.message : String(e));
           }
-          showContinuePrompt("sci");
+          showFlowControl("sci_basic");
         }
+        break;
+      }
+
+      case "trig_select": {
+        if (trimmed === "0") { showSciMenu(); return; }
+        const opMap: Record<string, string> = { "1": "sin", "2": "cos", "3": "tan", "4": "sec", "5": "cosec", "6": "cot" };
+        const op = opMap[trimmed];
+        if (!op) { showError("Unknown operation. Please enter 0-6."); return; }
+        setPromptLabel("🔢 angle (deg):");
+        setInputState({ mode: "trig_input", op });
+        break;
+      }
+
+      case "trig_input": {
+        const n = parseNum(trimmed);
+        if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+        try {
+          const fns: Record<string, (v: number) => string> = {
+            sin: sine, cos: cosine, tan: tangent, sec: secant, cosec: cosecant, cot: cotangent,
+          };
+          showResult(`${inputState.op}(${n}°)`, fns[inputState.op](n));
+        } catch (e: unknown) {
+          showError(e instanceof Error ? e.message : String(e));
+        }
+        showFlowControl("trig");
+        break;
+      }
+
+      case "inv_trig_select": {
+        if (trimmed === "0") { showSciMenu(); return; }
+        const opMap: Record<string, string> = { "1": "asin", "2": "acos", "3": "atan", "4": "asec", "5": "acosec", "6": "acot" };
+        const op = opMap[trimmed];
+        if (!op) { showError("Unknown operation. Please enter 0-6."); return; }
+        const domainHints: Record<string, string> = {
+          asin: "[-1,1]", acos: "[-1,1]", atan: "any", asec: "|v|>=1", acosec: "|v|>=1", acot: "any",
+        };
+        setPromptLabel(`🔢 value (${domainHints[op]}):`);
+        setInputState({ mode: "inv_trig_input", op });
+        break;
+      }
+
+      case "inv_trig_input": {
+        const n = parseNum(trimmed);
+        if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+        try {
+          const fns: Record<string, (v: number) => string> = {
+            asin: inverseSine, acos: inverseCosine, atan: inverseTangent,
+            asec: inverseSecant, acosec: inverseCosecant, acot: inverseCotangent,
+          };
+          showResult(`${inputState.op}(${n})°`, fns[inputState.op](n));
+        } catch (e: unknown) {
+          showError(e instanceof Error ? e.message : String(e));
+        }
+        showFlowControl("inv_trig");
         break;
       }
 
@@ -364,52 +487,21 @@ export default function CalcXTerminal() {
         } catch (e: unknown) {
           showError(e instanceof Error ? e.message : String(e));
         }
-        showContinuePrompt("expr");
+        showFlowControl("expr");
         break;
       }
 
-      case "continue": {
-        const answer = trimmed.toLowerCase();
-        if (answer === "yes" || answer === "y") {
-          switch (inputState.returnTo) {
-            case "basic": showBasicMenu(); break;
-            case "sci": showSciMenu(); break;
-            case "expr":
-              append(line(""), line("──── ⚡ Expression Mode ────", "cyan"), line("Type 'back' to return", "dim"), line(""));
-              setPromptLabel("expr >");
-              setInputState({ mode: "expression" });
-              break;
-            case "menu": showMenu(); break;
-          }
-        } else if (answer === "no" || answer === "n") {
-          append(
-            line(""),
-            line(`Thanks for using Smart CalcX 👋`, "cyan"),
-            line(`Goodbye, ${username}!`, "prompt"),
-          );
-          setTimeout(() => {
-            lineIdCounter = 0;
-            setUsername("");
-            setHistory([]);
-            setLines([
-              line(""),
-              line("════════════════════════════════════════════", "cyan"),
-              line("        Welcome to Smart CalcX 🧮", "cyan"),
-              line("    Interactive CLI Calculator v2.0", "dim"),
-              line("════════════════════════════════════════════", "cyan"),
-              line(""),
-              line("Please sign in to continue.", "normal"),
-            ]);
-            setPromptLabel("👤 username >");
-            setInputState({ mode: "login" });
-          }, 1500);
-        } else {
-          showError("Please enter 'yes' or 'no'.");
+      case "flow_control": {
+        switch (trimmed) {
+          case "1": showMenu(); break;
+          case "2": navigateToMenu(inputState.returnTo); break;
+          case "0": exitMessage(); break;
+          default: showError("Please enter 1 (Continue), 2 (Back), or 0 (Exit).");
         }
         break;
       }
     }
-  }, [inputState, history, append, showMenu, showBasicMenu, showSciMenu, record, promptLabel, username, showResult, showError, showContinuePrompt]);
+  }, [inputState, history, append, showMenu, showBasicMenu, showSciMenu, showSciBasicMenu, showTrigMenu, showInvTrigMenu, record, promptLabel, username, showResult, showError, showFlowControl, exitMessage, navigateToMenu]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputValue.trim()) {

@@ -108,6 +108,41 @@ export function inverseTangent(val: number): string {
   return formatResult((Math.atan(val) * 180) / Math.PI);
 }
 
+export function secant(degrees: number): string {
+  const rad = (degrees * Math.PI) / 180;
+  const c = Math.cos(rad);
+  if (Math.abs(c) < 1e-10) throw new Error("domain_error: sec undefined at this angle.");
+  return formatResult(1 / c);
+}
+
+export function cosecant(degrees: number): string {
+  const rad = (degrees * Math.PI) / 180;
+  const s = Math.sin(rad);
+  if (Math.abs(s) < 1e-10) throw new Error("domain_error: cosec undefined at this angle.");
+  return formatResult(1 / s);
+}
+
+export function cotangent(degrees: number): string {
+  const rad = (degrees * Math.PI) / 180;
+  const s = Math.sin(rad);
+  if (Math.abs(s) < 1e-10) throw new Error("domain_error: cot undefined at this angle.");
+  return formatResult(Math.cos(rad) / s);
+}
+
+export function inverseSecant(val: number): string {
+  if (Math.abs(val) < 1) throw new Error("domain_error: asec requires |value| >= 1.");
+  return formatResult((Math.acos(1 / val) * 180) / Math.PI);
+}
+
+export function inverseCosecant(val: number): string {
+  if (Math.abs(val) < 1) throw new Error("domain_error: acosec requires |value| >= 1.");
+  return formatResult((Math.asin(1 / val) * 180) / Math.PI);
+}
+
+export function inverseCotangent(val: number): string {
+  return formatResult((Math.atan(1 / val) * 180) / Math.PI);
+}
+
 // --- Expression Evaluation ---
 
 export function evaluateExpression(expr: string): string {

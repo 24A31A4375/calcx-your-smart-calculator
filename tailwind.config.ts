@@ -60,6 +60,8 @@ export default {
           result: "hsl(var(--terminal-result))",
           border: "hsl(var(--terminal-border))",
           selection: "hsl(var(--terminal-selection))",
+          cyan: "hsl(var(--terminal-cyan))",
+          yellow: "hsl(var(--terminal-yellow))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

@@ -122,6 +122,15 @@
   .terminal-cursor {
     @apply inline-block w-2 h-4 bg-terminal-prompt animate-blink;
   }
+
+  .terminal-cyan-text {
+    color: hsl(var(--terminal-cyan));
+    @apply font-bold;
+  }
+
+  .terminal-yellow-text {
+    color: hsl(var(--terminal-yellow));
+  }
 }
 
 @keyframes blink {

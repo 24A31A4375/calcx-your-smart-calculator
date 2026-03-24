@@ -6,7 +6,7 @@ const Index = () => {
       <h1 className="sr-only">CalcX – Command Line Calculator</h1>
       <CalcXTerminal />
       <p className="mt-4 text-xs terminal-dim-text font-mono">
-        calcx v1.0.0 — type a command to begin
+        smart calcx v2.0 — type a command to begin
       </p>
     </div>
   );

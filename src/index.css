@@ -46,6 +46,8 @@
     --terminal-result: 214 32% 91%;
     --terminal-border: 215 20% 15%;
     --terminal-selection: 217 91% 60%;
+    --terminal-cyan: 187 85% 53%;
+    --terminal-yellow: 45 93% 58%;
 
     --sidebar-background: 220 30% 9%;
     --sidebar-foreground: 214 32% 91%;
@@ -119,6 +121,15 @@
 
   .terminal-cursor {
     @apply inline-block w-2 h-4 bg-terminal-prompt animate-blink;
+  }
+
+  .terminal-cyan-text {
+    color: hsl(var(--terminal-cyan));
+    @apply font-bold;
+  }
+
+  .terminal-yellow-text {
+    color: hsl(var(--terminal-yellow));
   }
 }
 

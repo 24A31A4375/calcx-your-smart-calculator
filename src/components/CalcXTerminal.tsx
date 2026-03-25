@@ -288,7 +288,11 @@ export default function CalcXTerminal() {
       case "login": {
         if (!trimmed) { showError("Please enter a username."); return; }
         setUsername(trimmed);
-        append(line(""), line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"));
+        append(
+          line(""),
+          line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"),
+          line("Accepts: integers (5), decimals (5.5), fractions (1/2)", "dim"),
+        );
         append(...menuLines());
         setPromptLabel("cmd >");
         setInputState({ mode: "menu" });

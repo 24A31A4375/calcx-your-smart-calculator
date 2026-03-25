@@ -196,8 +196,20 @@ export default function CalcXTerminal() {
     setHistory((prev) => [...prev, createHistoryEntry(expression, result)]);
   }, []);
 
+  /** Parse int, float, or fraction (e.g. 1/2, 3/4) into a number */
   const parseNum = (s: string): number | null => {
-    const n = Number(s);
+    const t = s.trim();
+    if (!t) return null;
+    // Handle fractions like 1/2 or 3/4
+    if (t.includes("/")) {
+      const parts = t.split("/");
+      if (parts.length !== 2) return null;
+      const num = Number(parts[0].trim());
+      const den = Number(parts[1].trim());
+      if (isNaN(num) || isNaN(den) || den === 0) return null;
+      return num / den;
+    }
+    const n = Number(t);
     return isNaN(n) ? null : n;
   };
 

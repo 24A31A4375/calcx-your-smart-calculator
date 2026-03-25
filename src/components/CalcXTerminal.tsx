@@ -360,7 +360,7 @@ export default function CalcXTerminal() {
       case "basic_input": {
         if (inputState.step === "val1") {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           setPromptLabel("🔢 val_2:");
           setInputState({ mode: "basic_input", op: inputState.op, step: "val2", val1: n });
         } else {

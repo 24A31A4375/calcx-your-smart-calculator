@@ -365,7 +365,7 @@ export default function CalcXTerminal() {
           setInputState({ mode: "basic_input", op: inputState.op, step: "val2", val1: n });
         } else {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           try {
             const ops: Record<string, (a: number, b: number) => string> = {
               "+": add, "-": subtract, "*": multiply, "/": divide, "%": modulus,

@@ -192,9 +192,29 @@ export default function CalcXTerminal() {
     setInputState({ mode: "inv_trig_select" });
   }, [append]);
 
-  const record = useCallback((expression: string, result: string) => {
-    setHistory((prev) => [...prev, createHistoryEntry(expression, result)]);
+  const loadUserHistory = useCallback((user: string): HistoryEntry[] => {
+    try {
+      const key = `calcx_history_${user}`;
+      const raw = localStorage.getItem(key);
+      if (raw) return JSON.parse(raw) as HistoryEntry[];
+    } catch { /* ignore */ }
+    return [];
   }, []);
+
+  const saveUserHistory = useCallback((user: string, entries: HistoryEntry[]) => {
+    try {
+      localStorage.setItem(`calcx_history_${user}`, JSON.stringify(entries));
+    } catch { /* ignore */ }
+  }, []);
+
+  const record = useCallback((expression: string, result: string) => {
+    setHistory((prev) => {
+      const entry = createHistoryEntry(expression, result);
+      const updated = [...prev, entry];
+      if (username) saveUserHistory(username, updated);
+      return updated;
+    });
+  }, [username, saveUserHistory]);
 
   /** Parse int, float, or fraction (e.g. 1/2, 3/4) into a number */
   const parseNum = (s: string): number | null => {

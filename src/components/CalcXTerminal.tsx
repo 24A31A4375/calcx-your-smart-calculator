@@ -308,9 +308,29 @@ export default function CalcXTerminal() {
       case "login": {
         if (!trimmed) { showError("Please enter a username."); return; }
         setUsername(trimmed);
+        const prevHistory = loadUserHistory(trimmed);
+        if (prevHistory.length > 0) {
+          setHistory(prevHistory);
+          append(
+            line(""),
+            line("────────────────────────────────────────", "cyan"),
+            line(`  Welcome back, ${trimmed}!`, "success"),
+            line("  📜 Your Previous Calculations:", "cyan"),
+            line("────────────────────────────────────────", "cyan"),
+          );
+          prevHistory.slice(-15).forEach((e) => {
+            append(line(`  ${e.expression} = ${e.result}`, "dim", 1));
+          });
+          append(line("────────────────────────────────────────", "cyan"));
+        } else {
+          append(
+            line(""),
+            line(`Welcome, ${trimmed}! No previous history found.`, "success"),
+          );
+        }
         append(
           line(""),
-          line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"),
+          line(`Ready to calculate 🚀`, "success"),
           line("Accepts: integers (5), decimals (5.5), fractions (1/2)", "dim"),
         );
         append(...menuLines());

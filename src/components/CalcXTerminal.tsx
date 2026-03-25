@@ -196,8 +196,20 @@ export default function CalcXTerminal() {
     setHistory((prev) => [...prev, createHistoryEntry(expression, result)]);
   }, []);
 
+  /** Parse int, float, or fraction (e.g. 1/2, 3/4) into a number */
   const parseNum = (s: string): number | null => {
-    const n = Number(s);
+    const t = s.trim();
+    if (!t) return null;
+    // Handle fractions like 1/2 or 3/4
+    if (t.includes("/")) {
+      const parts = t.split("/");
+      if (parts.length !== 2) return null;
+      const num = Number(parts[0].trim());
+      const den = Number(parts[1].trim());
+      if (isNaN(num) || isNaN(den) || den === 0) return null;
+      return num / den;
+    }
+    const n = Number(t);
     return isNaN(n) ? null : n;
   };
 
@@ -276,7 +288,11 @@ export default function CalcXTerminal() {
       case "login": {
         if (!trimmed) { showError("Please enter a username."); return; }
         setUsername(trimmed);
-        append(line(""), line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"));
+        append(
+          line(""),
+          line(`Hello, ${trimmed}! Ready to calculate 🚀`, "success"),
+          line("Accepts: integers (5), decimals (5.5), fractions (1/2)", "dim"),
+        );
         append(...menuLines());
         setPromptLabel("cmd >");
         setInputState({ mode: "menu" });
@@ -317,9 +333,10 @@ export default function CalcXTerminal() {
               const blob = new Blob([content], { type: "text/plain" });
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
-              a.href = url; a.download = "result.txt"; a.click();
+              const filename = username ? `${username}_history.txt` : "result.txt";
+              a.href = url; a.download = filename; a.click();
               URL.revokeObjectURL(url);
-              append(line("✅ Saved to result.txt", "success", 2));
+              append(line(`✅ Saved to '${username}_history.txt'`, "success", 2));
             }
             showMenu();
             break;
@@ -344,12 +361,12 @@ export default function CalcXTerminal() {
       case "basic_input": {
         if (inputState.step === "val1") {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           setPromptLabel("🔢 val_2:");
           setInputState({ mode: "basic_input", op: inputState.op, step: "val2", val1: n });
         } else {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           try {
             const ops: Record<string, (a: number, b: number) => string> = {
               "+": add, "-": subtract, "*": multiply, "/": divide, "%": modulus,
@@ -394,7 +411,7 @@ export default function CalcXTerminal() {
       case "sci_basic_input": {
         if (inputState.step === "val1") {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           if (inputState.op === "pow") {
             setPromptLabel("🔢 exponent:");
             setInputState({ mode: "sci_basic_input", op: "pow", step: "val2", base: n });
@@ -414,7 +431,7 @@ export default function CalcXTerminal() {
           showFlowControl("sci_basic");
         } else if (inputState.step === "val2" && inputState.op === "pow") {
           const n = parseNum(trimmed);
-          if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+          if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
           try {
             showResult(`${inputState.base}^${n}`, power(inputState.base, n));
           } catch (e: unknown) {
@@ -437,7 +454,7 @@ export default function CalcXTerminal() {
 
       case "trig_input": {
         const n = parseNum(trimmed);
-        if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+        if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
         try {
           const fns: Record<string, (v: number) => string> = {
             sin: sine, cos: cosine, tan: tangent, sec: secant, cosec: cosecant, cot: cotangent,
@@ -465,7 +482,7 @@ export default function CalcXTerminal() {
 
       case "inv_trig_input": {
         const n = parseNum(trimmed);
-        if (n === null) { showError("Invalid input! Please enter numbers only."); return; }
+        if (n === null) { showError("Invalid input! Enter numbers, decimals, or fractions only."); return; }
         try {
           const fns: Record<string, (v: number) => string> = {
             asin: inverseSine, acos: inverseCosine, atan: inverseTangent,

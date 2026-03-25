@@ -336,7 +336,7 @@ export default function CalcXTerminal() {
               const filename = username ? `${username}_history.txt` : "result.txt";
               a.href = url; a.download = filename; a.click();
               URL.revokeObjectURL(url);
-              append(line("✅ Saved to '${username}_history.txt'", "success", 2));
+              append(line(`✅ Saved to '${username}_history.txt'`, "success", 2));
             }
             showMenu();
             break;

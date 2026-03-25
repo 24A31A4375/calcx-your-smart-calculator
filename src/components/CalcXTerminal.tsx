@@ -234,9 +234,12 @@ export default function CalcXTerminal() {
   };
 
   const showResult = useCallback((expr: string, res: string) => {
-    append(line(`👉 Result: ${res}`, "success", 2));
+    append(
+      line(`👉 Result: ${res}`, "success", 2),
+      line(`💾 Auto-saved to ${username || "user"}_history`, "dim", 2),
+    );
     record(expr, res);
-  }, [append, record]);
+  }, [append, record, username]);
 
   const showError = useCallback((msg: string) => {
     append(line(`❌ ${msg}`, "error", 2));

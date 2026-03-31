@@ -1,7 +1,7 @@
 # Smart CalcX – Interactive CLI Calculator
 
 A professional, web-based CLI calculator with colorful UI, structured navigation, trigonometry categorization, fraction support, and strict input validation.
-
+https://lovable.dev/projects/1519b3cd-1e9a-4c8b-b10b-6c8afb55cbad
 ## Features
 
 - **Login Screen** — Stylish welcome banner with username prompt
